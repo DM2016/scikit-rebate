@@ -25,7 +25,7 @@ import time
 import warnings
 import sys
 from sklearn.base import BaseEstimator
-from joblib import Parallel, delayed
+from sklearn.externals.joblib import Parallel, delayed
 
 class ReliefF(BaseEstimator):
 
@@ -44,7 +44,7 @@ class ReliefF(BaseEstimator):
         Parameters
         ----------
         n_features_to_select: int (default: 10)
-            the number of top features (according to the relieff score) to 
+            the number of top features (according to the relieff score) to
             retain after feature selection is applied.
         n_neighbors: int (default: 100)
             The number of neighbors to consider when assigning feature
@@ -57,7 +57,7 @@ class ReliefF(BaseEstimator):
         verbose: bool (default: False)
             If True, output timing of distance array and scoring
         n_jobs: int (default: 1)
-            The number of cores to dedicate to computing the scores with joblib.
+            The number of cores to dedicate to computing the scores with sklearn.externals.joblib.
             Assigning this parameter to -1 will dedicate as many cores as are available on your system.
             We recommend setting this parameter to -1 to speed up the algorithm as much as possible.
 
@@ -78,7 +78,7 @@ class ReliefF(BaseEstimator):
             Training instances to compute the feature importance scores from
         y: array-like {n_samples}
             Training labels
-        
+
         Returns
         -------
         Copy of the ReliefF instance
@@ -91,6 +91,7 @@ class ReliefF(BaseEstimator):
         if self.n_jobs != 1 and sys.version_info[0] < 3:
             warnings.warn('Parallelization is currently not supported in Python 2. Settings n_jobs to 1.', RuntimeWarning)
             self.n_jobs = 1
+        print(self.n_jobs)
 
         # Set up the properties for ReliefF
         self._datalen = len(self._X)
@@ -116,7 +117,7 @@ class ReliefF(BaseEstimator):
         xlen = len(self._X[0])
         mxlen = len(str(xlen + 1))
         self._headers = ['X{}'.format(str(i).zfill(mxlen)) for i in range(1, xlen + 1)]
-        
+
         # Determine the data type
         C = D = False
         attr = self._get_attribute_info()
@@ -126,7 +127,7 @@ class ReliefF(BaseEstimator):
             if attr[key][0] == 'continuous':
                 C = True
 
-        if C and D: 
+        if C and D:
             self.data_type = 'mixed'
         elif D and not C:
             self.data_type = 'discrete'
@@ -212,13 +213,13 @@ class ReliefF(BaseEstimator):
         d = 0
         limit = self.discrete_threshold
         w = self._X.transpose()
-        
+
         for idx in range(len(w)):
             h = self._headers[idx]
             z = w[idx]
             if self._missing_data_count > 0:
                 z = z[np.logical_not(np.isnan(z))]
-            zlen = len(np.unique(z)) 
+            zlen = len(np.unique(z))
             if zlen <= limit:
                 attr[h] = ('discrete', 0, 0, 0)
                 d += 1
@@ -226,9 +227,9 @@ class ReliefF(BaseEstimator):
                 mx = np.max(z)
                 mn = np.min(z)
                 attr[h] = ('continuous', mx, mn, mx - mn)
-        
+
         return attr
-    #==================================================================#    
+    #==================================================================#
     def _distarray_no_missing(self, xc, xd):
         """Distance array for data with no missing values"""
         from scipy.spatial.distance import pdist, squareform
@@ -262,18 +263,18 @@ class ReliefF(BaseEstimator):
         """Return mask for discrete(0)/continuous(1) attributes and their indices. Return array of max/min diffs of attributes."""
         attrtype = []
         attrdiff = []
-        
+
         for key in self._headers:
             if attr[key][0] == 'continuous':
                 attrtype.append(1)
             else:
                 attrtype.append(0)
             attrdiff.append(attr[key][3])
-            
+
         attrtype = np.array(attrtype)
         cidx = np.where(attrtype == 1)[0]
         didx = np.where(attrtype == 0)[0]
-        
+
         attrdiff = np.array(attrdiff)
         return attrdiff, cidx, didx
     #==================================================================#
@@ -314,7 +315,7 @@ class ReliefF(BaseEstimator):
             idx = np.unique(np.append(dan, dbn))
             d1 = np.delete(dinst1, idx)
             d2 = np.delete(dinst2, idx)
-            
+
             # discrete first
             dist += len(d1[d1 != d2])
 
@@ -323,7 +324,7 @@ class ReliefF(BaseEstimator):
 
             row = np.append(row, dist)
         return row
-    
+
 ############################# ReliefF ############################################
     def _find_neighbors(self, inst):
         dist_vect = []
@@ -368,12 +369,12 @@ class ReliefF(BaseEstimator):
     def _run_algorithm(self):
         attr = self._get_attribute_info()
         nan_entries = np.isnan(self._X)
-        
-        if self.n_jobs != 1:
-            scores = np.sum(Parallel(n_jobs=self.n_jobs)(delayed(
-                self._compute_scores)(instance_num, attr, nan_entries) for instance_num in range(self._datalen)), axis=0)
-        else:
-            scores = np.sum([self._compute_scores(instance_num, attr, nan_entries) for instance_num in range(self._datalen)], axis=0)
+
+        #if self.n_jobs != 1:
+        scores = np.sum(Parallel(n_jobs=self.n_jobs)(delayed(
+            self._compute_scores)(instance_num, attr, nan_entries) for instance_num in range(self._datalen)), axis=0)
+        #else:
+            #scores = np.sum([self._compute_scores(instance_num, attr, nan_entries) for instance_num in range(self._datalen)], axis=0)
 
         return np.array(scores)
 
@@ -384,7 +385,7 @@ class ReliefF(BaseEstimator):
         fname = self._headers[feature]
         ftype = attr[fname][0]  # feature type
         ctype = self._class_type # class type
-        diff_hit = diff_miss = 0.0 
+        diff_hit = diff_miss = 0.0
         count_hit = count_miss = 0.0
         mmdiff = 1
         diff = 0
@@ -402,7 +403,7 @@ class ReliefF(BaseEstimator):
 
                 xNNifeature = self._X[NN[i]][feature]
                 absvalue = abs(xinstfeature - xNNifeature) / mmdiff
-    
+
                 if self._y[inst] == self._y[NN[i]]:   # HIT
                     count_hit += 1
                     if xinstfeature != xNNifeature:
