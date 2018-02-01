@@ -98,7 +98,7 @@ class ReliefF(BaseEstimator):
         # Set up the properties for ReliefF
         self._datalen = len(self._X)
         if hasattr(self, 'n_neighbors') and type(self.n_neighbors) is float:
-            # Halve the number of neighbors because ReliefF uses n_neighbors matches 
+            # Halve the number of neighbors because ReliefF uses n_neighbors matches
             # and n_neighbors misses
             self.n_neighbors = int(self.n_neighbors * self._datalen * 0.5)
         self._label_list = list(set(self._y))
@@ -342,5 +342,10 @@ class ReliefF(BaseEstimator):
             ReliefF_compute_scores)(instance_num, attr, nan_entries, self._num_attributes,
             NN, self._headers, self._class_type, self._X, self._y, self._labels_std)
              for instance_num, NN in zip(range(self._datalen), NNlist)), axis=0)
+
+        #averaging the scores
+        divisor = self._datalen * self.n_neighbors
+        for ai in range(self._num_attributes):
+            scores[ai] = scores[ai]/float(divisor)
 
         return np.array(scores)
