@@ -42,7 +42,7 @@ class MultiSURF(BaseEstimator):
         Parameters
         ----------
         n_features_to_select: int (default: 10)
-            The number of top features (according to the MultiSURF scores) to 
+            The number of top features (according to the MultiSURF scores) to
             retain after feature selection is applied.
         dlimit: int (default: 10)
             Value used to determine if a feature is discrete or continuous.
@@ -69,7 +69,7 @@ class MultiSURF(BaseEstimator):
             Training instances to compute the feature importance scores from
         y: array-like {n_samples}
             Training labels
-        
+
         Returns
         -------
         Copy of the MultiSURF instance
@@ -78,7 +78,7 @@ class MultiSURF(BaseEstimator):
         self.x = X
         self.y = y
         self._distance_array = None
-        
+
         # Compute the distance array between all data points
         start = tm.time()
         if(self.mdcnt > 0 or self.data_type == 'mixed'):
@@ -90,12 +90,12 @@ class MultiSURF(BaseEstimator):
             self._distance_array = self.distarray_mixed_missing(xc, xd, cdiffs)
         else:
             self._distance_array = self.distarray_clean
-            
+
         if self.verbose:
             elapsed = tm.time() - start
             print('Created distance array in ' + str(elapsed) + ' seconds.')
             print('MultiSURF scoring under way ...')
-            
+
         start = tm.time()
         if(self.class_type == 'multiclass'):
             self.feature_importances_ = np.array(self.mcMultiSURF())
@@ -108,10 +108,10 @@ class MultiSURF(BaseEstimator):
 
         # Compute indices of top features
         self.top_features_ = np.argsort(self.feature_importances_)[::-1]
-        
+
         # Delete the internal distance array because it is no longer needed
         del self._distance_array
-        
+
         return self
 
     #=========================================================================#
@@ -162,24 +162,24 @@ class MultiSURF(BaseEstimator):
         else:
             header = self.headers
         return header
-    #==================================================================#    
+    #==================================================================#
     @property
     def datalen(self):
         return len(self.x)
-    #==================================================================#    
+    #==================================================================#
     @property
     def num_attributes(self):
         return len(self.x[0])
-    #==================================================================#    
+    #==================================================================#
     @property
     def phenotype_list(self):
         return list(set(self.y))
-    #==================================================================#    
-    @property 
-    def mdcnt(self):  
+    #==================================================================#
+    @property
+    def mdcnt(self):
         """ missing data count """
         return isnan(self.x).sum()
-    #==================================================================#    
+    #==================================================================#
     @property
     def phenSD(self):
         """ standard deviation of class if continuous """
@@ -187,14 +187,14 @@ class MultiSURF(BaseEstimator):
             return 0
         else:
             return std(self.y, ddof=1)
-    #==================================================================#    
+    #==================================================================#
     @property
     def discrete_phenotype(self):
         if(len(self.phenotype_list) <= self.dlimit):
             return True
         else:
             return False
-    #==================================================================#    
+    #==================================================================#
     @property
     def get_attribute_info(self):
         attr = dict()
@@ -202,12 +202,12 @@ class MultiSURF(BaseEstimator):
         limit = self.dlimit
         w = self.x.transpose()
         md = self.mdcnt
-        
+
         for idx in range(len(w)):
             h = self.header[idx]
             z = w[idx]
             if(md > 0): z = z[logical_not(isnan(z))]
-            zlen = len(unique(z)) 
+            zlen = len(unique(z))
             if(zlen <= limit):
                 attr[h] = ('discrete',0,0,0)
                 d += 1
@@ -215,26 +215,26 @@ class MultiSURF(BaseEstimator):
                 mx = max(z)
                 mn = min(z)
                 attr[h] = ('continuous',mx, mn, mx - mn)
-        
+
         return attr
-    #==================================================================#    
+    #==================================================================#
     @property
     def data_type(self):
         C = D = False
-        
+
         attr = self.get_attribute_info
-        
+
         for key in attr.keys():
             if(attr[key][0] == 'discrete'): D = True
             if(attr[key][0] == 'continuous'): C = True
-                
-        if(C and D): 
+
+        if(C and D):
             return 'mixed'
         elif(D and not C):
             return 'discrete'
         elif(C and not D):
             return 'continuous'
-    #==================================================================#    
+    #==================================================================#
     @property
     def class_type(self):
         dp = self.discrete_phenotype
@@ -244,7 +244,7 @@ class MultiSURF(BaseEstimator):
             return 'discrete'
         else:
             return 'continuous'
-    #==================================================================#    
+    #==================================================================#
     @property
     def distarray_clean(self):
         """ distance array for clean contiguous data """
@@ -256,8 +256,8 @@ class MultiSURF(BaseEstimator):
             for i in attr:
                 cmin = attr[i][2]
                 diff = attr[i][3]
-                x[idx] -= cmin
-                x[idx] /= diff
+                x[:, idx] -= cmin
+                x[:, idx] /= diff
                 idx += 1
             return x
         #------------------------------------------#
@@ -266,54 +266,54 @@ class MultiSURF(BaseEstimator):
         else:
             self.x = pre_normalize(self.x)
             return squareform(pdist(self.x, metric='cityblock'))
-    
+
 ######################### SUPPORTING METHODS ###########################
     def dtypeArray(self,attr):
-        """  Return mask for discrete(0)/continuous(1) attributes and their 
+        """  Return mask for discrete(0)/continuous(1) attributes and their
              indices. Return array of max/min diffs of attributes. """
         attrtype = []
         attrdiff = []
-        
+
         for key in self.header:
             if(attr[key][0] == 'continuous'):
                 attrtype.append(1)
             else:
                 attrtype.append(0)
             attrdiff.append(attr[key][3])
-            
+
         attrtype = array(attrtype)
         cidx = where(attrtype == 1)[0]
         didx = where(attrtype == 0)[0]
-        
+
         attrdiff = array(attrdiff)
         return attrdiff, cidx, didx
-    #==================================================================#    
+    #==================================================================#
     def distarray_mixed_missing(self, xc, xd, cdiffs):
         """ distance array for mixed/missing data """
-        
+
         dist_array = []
         datalen = self.datalen
         missing = self.mdcnt
-        
+
         if(missing > 0):
             cindices = []
             dindices = []
             for i in range(datalen):
                 cindices.append(where(isnan(xc[i]))[0])
                 dindices.append(where(isnan(xd[i]))[0])
-        
+
         for index in range(datalen):
             if(missing > 0):
-                row = self.get_row_missing(xc, xd, cdiffs, index, 
+                row = self.get_row_missing(xc, xd, cdiffs, index,
                                            cindices, dindices)
             else:
                 row = self.get_row_mixed(xc, xd, cdiffs, index)
-                
+
             row = list(row)
             dist_array.append(row)
-            
+
         return dist_array
-    #==================================================================#    
+    #==================================================================#
     def get_row_missing(self, xc, xd, cdiffs, index, cindices, dindices):
 
         row = empty(0,dtype=double)
@@ -338,7 +338,7 @@ class MultiSURF(BaseEstimator):
             idx = unique(append(dan,dbn))
             d1 = delete(dinst1,idx)
             d2 = delete(dinst2,idx)
-            
+
             # discrete first
             dist += len(d1[d1 != d2])
 
@@ -348,7 +348,7 @@ class MultiSURF(BaseEstimator):
             row = append(row,dist)
 
         return row
-    #==================================================================#    
+    #==================================================================#
     def get_row_mixed(self, xc, xd, cdiffs, index):
 
         row = empty(0,dtype=double)
@@ -358,17 +358,17 @@ class MultiSURF(BaseEstimator):
             dist = 0
             d2 = xd[j]
             c2 = xc[j]
-    
+
             # discrete first
             dist += len(d1[d1 != d2])
 
             # now continuous
             dist += sum(absolute(subtract(c1,c2)) / cdiffs)
-    
+
             row = append(row,dist)
 
         return row
-    
+
 ######################## MULTISURF ############################################
     def runMultiSURF(self):
         """ get multiSURF scores """
@@ -414,20 +414,20 @@ class MultiSURF(BaseEstimator):
                 xik = x[i][k]
                 if(isnan(xik)): continue
                 for j in range(i,datalen):
-                    if(i == j) : continue 
+                    if(i == j) : continue
                     xjk = x[j][k]
                     if(isnan(xjk)): continue
-    
+
                     if(datatype == 'continuous'):
                         calc = abs(xik - xjk) / mmdiff
-    
+
                     locator = [i,j]
                     if(i < j): locator.reverse()
                     d = distArray[locator[0]][locator[1]]
-    
+
                     #---------------------------------------------------------
                     if(d < avg_dist[i] - D[i]):  # NEAR
-                     
+
                         if(classtype == 'discrete'):
                             if(y[i] == y[j]): # SAME ENDPOINT
                                 count_hit_near += 1
@@ -443,7 +443,7 @@ class MultiSURF(BaseEstimator):
                                         diff_miss_near += calc
                                     else:
                                         diff_miss_near += 1
-    
+
                         else: # CONTINUOUS ENDPOINT
                             if(abs(y[i] - y[j]) < same_class_bound):
                                 count_hit_near += 1
@@ -461,7 +461,7 @@ class MultiSURF(BaseEstimator):
                                         diff_miss_near += 1
                     #----------------------------------------------------------
                     if(d > avg_dist[i] + D[i]):  # FAR
-                     
+
                         if(classtype == 'discrete'):
                             if(y[i] == y[j]):
                                 count_hit_far += 1
@@ -475,7 +475,7 @@ class MultiSURF(BaseEstimator):
                                     diff_miss_far += calc
                                 else: # DISCRETE
                                     if(xik == xjk): diff_miss_far += 1
-    
+
                         else: # CONTINUOUS ENDPOINT
                             if(abs(y[i] - y[j]) < same_class_bound):
                                 count_hit_far += 1
@@ -483,7 +483,7 @@ class MultiSURF(BaseEstimator):
                                     diff_hit_far -= calc
                                 else: # DISCRETE
                                     if(xik == xjk): diff_hit_far -= 1
-    
+
                             else:
                                 count_miss_far += 1
                                 if(datatype == 'continuous'):
@@ -491,21 +491,21 @@ class MultiSURF(BaseEstimator):
                                 else: #DISCRETE
                                     if(xik == xjk): diff_miss_far += 1
                     #----------------------------------------------------------
-    
+
             hit_proportion=count_hit_near/(count_hit_near + count_miss_near)
             miss_proportion=count_miss_near/(count_hit_near + count_miss_near)
-    
+
             #applying weighting scheme to balance the scores
             diff = diff_hit_near * miss_proportion + diff_miss_near * hit_proportion
-    
+
             hit_proportion = count_hit_far/(count_hit_far + count_miss_far)
             miss_proportion = count_miss_far/(count_hit_far + count_miss_far)
-    
+
             #applying weighting scheme to balance the scores
             diff += diff_hit_far * miss_proportion + diff_miss_far * hit_proportion
-            
+
             ScoreList[k]+=diff
-    
+
         return ScoreList
 
 ####################### MULTISURF (multiclass) ################################
@@ -524,7 +524,7 @@ class MultiSURF(BaseEstimator):
             return d
         #--------------------------------------------------------------------------
         def makeClassPairMap():
-            """ finding number of classes in the dataset 
+            """ finding number of classes in the dataset
                 and storing them into the map """
             classPair_map = dict()
             for each in multiclass_map:
@@ -538,21 +538,21 @@ class MultiSURF(BaseEstimator):
             return classPair_map
         #--------------------------------------------------------------------------
         def getMultiClassMap():
-            """ Find number of classes in the dataset and 
+            """ Find number of classes in the dataset and
                 store them into the map """
             mcmap = dict()
             maxInst = self.datalen
             y = self.y
-    
+
             for i in range(maxInst):
                 if(y[i] not in mcmap):
                     mcmap[y[i]] = 0
                 else:
                     mcmap[y[i]] += 1
-    
+
             for each in self.phenotype_list:
                 mcmap[each] = mcmap[each]/float(maxInst)
-                
+
             return mcmap
         #--------------------------------------------------------------------------
         x = self.x
@@ -561,43 +561,43 @@ class MultiSURF(BaseEstimator):
         numattr = self.num_attributes
         datalen = self.datalen
         header = self.header
-        mmdiff = 0.0 
+        mmdiff = 0.0
         calc = calc1 = 0
-    
+
         ScoreList=[0] * numattr
         D=[]; avg_dist=[]
-        
+
         multiclass_map = getMultiClassMap()
-    
+
         for i in range(datalen):
             dist_vect = get_individual_distances()
             avg_dist.append(np.average(dist_vect))
             D.append(np.std(dist_vect)/2.0)
-            
+
         for k in range(numattr):    #looping through attributes
             datatype = attr[header[k]][0]
             if(datatype == 'continuous'):
                 mmdiff = attr[header[k]][3]
-                
+
             count_hit_near = count_miss_near = 0.0
             count_hit_far = count_miss_far = 0.0
             diff_hit_near = diff_miss_near = 0.0
             diff_hit_far = diff_miss_far = 0.0
-            
+
             class_Store_near = makeClassPairMap()
             class_Store_far = makeClassPairMap()
-            
-            for i in range(datalen):                     
+
+            for i in range(datalen):
                 xik = x[i][k]
                 if(isnan(xik)): continue
                 for j in range(i,datalen):
                     xjk = x[j][k]
                     if(i == j or isnan(xjk)): continue
-    
+
                     if(datatype == 'continuous'):
                         calc = abs(xik - xjk) / mmdiff
                         calc1 = (1 - abs(xik - xjk)) / mmdiff
-    
+
                     locator = [i,j]
                     if(i < j): locator.reverse()
                     d = distArray[locator[0]][locator[1]]
@@ -623,7 +623,7 @@ class MultiSURF(BaseEstimator):
                                     class_Store_near[tempString][1] += 1
                     #--------------------------------------------------------------
                     if (d > (avg_dist[i] + D[i])): #Far
-                            
+
                         if(y[i] == y[j]):
                             count_hit_far += 1
                             if(datatype == 'continuous'):
@@ -637,43 +637,43 @@ class MultiSURF(BaseEstimator):
                             if(y[i] < y[j]): locator.reverse()
                             tempString = str(locator[0]) + str(locator[1])
                             class_Store_far[tempString][0] += 1
-                            
+
                             if(datatype == 'continuous'):
-                                class_Store_far[tempString][1] += calc 
+                                class_Store_far[tempString][1] += calc
                             else:
                                 if(xik == xjk):
-                                    class_Store_far[tempString][1] += 1    
+                                    class_Store_far[tempString][1] += 1
             #Near
-            missSum = 0 
+            missSum = 0
             for each in class_Store_near:
                 missSum += class_Store_near[each][0]
-                             
-            hit_proportion = count_hit_near/float(count_hit_near+count_miss_near) 
-            miss_proportion = count_miss_near/float(count_hit_near+count_miss_near) 
-            
+
+            hit_proportion = count_hit_near/float(count_hit_near+count_miss_near)
+            miss_proportion = count_miss_near/float(count_hit_near+count_miss_near)
+
             for each in class_Store_near:
                 diff_miss_near += \
                 (class_Store_near[each][0]/float(missSum))*class_Store_near[each][1]
             diff_miss_near = diff_miss_near * float(len(class_Store_near))
-    
-            diff = diff_miss_near*hit_proportion + diff_hit_near*miss_proportion 
-                             
+
+            diff = diff_miss_near*hit_proportion + diff_hit_near*miss_proportion
+
             #Far
-            missSum = 0 
+            missSum = 0
             for each in class_Store_far:
                 missSum += class_Store_far[each][0]
-    
+
             hit_proportion = count_hit_far/float(count_hit_far + count_miss_far)
-            miss_proportion = count_miss_far/float(count_hit_far + count_miss_far) 
-            
+            miss_proportion = count_miss_far/float(count_hit_far + count_miss_far)
+
             for each in class_Store_far:
                 diff_miss_far += \
                 (class_Store_far[each][0]/float(missSum))*class_Store_far[each][1]
-    
+
             diff_miss_far = diff_miss_far * float(len(class_Store_far))
-            
-            diff += diff_miss_far*hit_proportion + diff_hit_far*miss_proportion   
-               
-            ScoreList[k] += diff    
-            
+
+            diff += diff_miss_far*hit_proportion + diff_hit_far*miss_proportion
+
+            ScoreList[k] += diff
+
         return ScoreList
