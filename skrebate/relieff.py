@@ -44,7 +44,7 @@ class ReliefF(BaseEstimator):
         Parameters
         ----------
         n_features_to_select: int (default: 10)
-            The number of top features (according to the ReliefF scores) to 
+            The number of top features (according to the ReliefF scores) to
             retain after feature selection is applied.
         n_neighbors: int (default: 100)
             The number of neighbors to consider when assigning feature
@@ -76,7 +76,7 @@ class ReliefF(BaseEstimator):
             Training instances to compute the feature importance scores from
         y: array-like {n_samples}
             Training labels
-        
+
         Returns
         -------
         Copy of the ReliefF instance
@@ -84,15 +84,15 @@ class ReliefF(BaseEstimator):
         """
         self.x = X
         self.y = y
-        
+
         # Compute the distance array between all data points
         start = tm.time()
         self.feature_importances_ = np.array(self.runRelieff())
-        
+
         if self.verbose:
             elapsed = tm.time() - start
             print('Completed scoring in ' + str(elapsed) + ' seconds')
-        
+
         # Compute indices of top features
         self.top_features_ = np.argsort(self.feature_importances_)[::-1]
         return self
@@ -145,24 +145,24 @@ class ReliefF(BaseEstimator):
         else:
             header = self.headers
         return header
-    #==================================================================#    
+    #==================================================================#
     @property
     def datalen(self):
         return len(self.x)
-    #==================================================================#    
+    #==================================================================#
     @property
     def num_attributes(self):
         return len(self.x[0])
-    #==================================================================#    
+    #==================================================================#
     @property
     def phenotype_list(self):
         return list(set(self.y))
-    #==================================================================#    
-    @property 
-    def mdcnt(self):  
+    #==================================================================#
+    @property
+    def mdcnt(self):
         """ missing data count """
         return isnan(self.x).sum()
-    #==================================================================#    
+    #==================================================================#
     @property
     def phenSD(self):
         """ standard deviation of class if continuous """
@@ -170,14 +170,14 @@ class ReliefF(BaseEstimator):
             return 0
         else:
             return std(self.y, ddof=1)
-    #==================================================================#    
+    #==================================================================#
     @property
     def discrete_phenotype(self):
         if(len(self.phenotype_list) <= self.dlimit):
             return True
         else:
             return False
-    #==================================================================#    
+    #==================================================================#
     @property
     def get_attribute_info(self):
         attr = dict()
@@ -185,12 +185,12 @@ class ReliefF(BaseEstimator):
         limit = self.dlimit
         w = self.x.transpose()
         md = self.mdcnt
-        
+
         for idx in range(len(w)):
             h = self.header[idx]
             z = w[idx]
             if(md > 0): z = z[logical_not(isnan(z))]
-            zlen = len(unique(z)) 
+            zlen = len(unique(z))
             if(zlen <= limit):
                 attr[h] = ('discrete',0,0,0)
                 d += 1
@@ -198,26 +198,26 @@ class ReliefF(BaseEstimator):
                 mx = max(z)
                 mn = min(z)
                 attr[h] = ('continuous',mx, mn, mx - mn)
-        
+
         return attr
-    #==================================================================#    
+    #==================================================================#
     @property
     def data_type(self):
         C = D = False
-        
+
         attr = self.get_attribute_info
-        
+
         for key in attr.keys():
             if(attr[key][0] == 'discrete'): D = True
             if(attr[key][0] == 'continuous'): C = True
-                
-        if(C and D): 
+
+        if(C and D):
             return 'mixed'
         elif(D and not C):
             return 'discrete'
         elif(C and not D):
             return 'continuous'
-    #==================================================================#    
+    #==================================================================#
     @property
     def class_type(self):
         dp = self.discrete_phenotype
@@ -227,7 +227,7 @@ class ReliefF(BaseEstimator):
             return 'discrete'
         else:
             return 'continuous'
-    #==================================================================#    
+    #==================================================================#
     @property
     def distarray_clean(self):
         """ distance array for clean contiguous data """
@@ -239,8 +239,8 @@ class ReliefF(BaseEstimator):
             for i in attr:
                 cmin = attr[i][2]
                 diff = attr[i][3]
-                x[idx] -= cmin
-                x[idx] /= diff
+                x[:, idx] -= cmin
+                x[:, idx] /= diff
                 idx += 1
             return x
         #------------------------------------------#
@@ -249,54 +249,54 @@ class ReliefF(BaseEstimator):
         else:
             self.x = pre_normalize(self.x)
             return squareform(pdist(self.x, metric='cityblock'))
-    
+
 ######################### SUPPORTING METHODS ###########################
     def dtypeArray(self,attr):
-        """  Return mask for discrete(0)/continuous(1) attributes and their 
+        """  Return mask for discrete(0)/continuous(1) attributes and their
              indices. Return array of max/min diffs of attributes. """
         attrtype = []
         attrdiff = []
-        
+
         for key in self.header:
             if(attr[key][0] == 'continuous'):
                 attrtype.append(1)
             else:
                 attrtype.append(0)
             attrdiff.append(attr[key][3])
-            
+
         attrtype = array(attrtype)
         cidx = where(attrtype == 1)[0]
         didx = where(attrtype == 0)[0]
-        
+
         attrdiff = array(attrdiff)
         return attrdiff, cidx, didx
-    #==================================================================#    
+    #==================================================================#
     def distarray_mixed_missing(self, xc, xd, cdiffs):
         """ distance array for mixed/missing data """
-        
+
         dist_array = []
         datalen = self.datalen
         missing = self.mdcnt
-        
+
         if(missing > 0):
             cindices = []
             dindices = []
             for i in range(datalen):
                 cindices.append(where(isnan(xc[i]))[0])
                 dindices.append(where(isnan(xd[i]))[0])
-        
+
         for index in range(datalen):
             if(missing > 0):
-                row = self.get_row_missing(xc, xd, cdiffs, index, 
+                row = self.get_row_missing(xc, xd, cdiffs, index,
                                            cindices, dindices)
             else:
                 row = self.get_row_mixed(xc, xd, cdiffs, index)
-                
+
             row = list(row)
             dist_array.append(row)
-            
+
         return dist_array
-    #==================================================================#    
+    #==================================================================#
     def get_row_missing(self, xc, xd, cdiffs, index, cindices, dindices):
 
         row = empty(0,dtype=double)
@@ -321,7 +321,7 @@ class ReliefF(BaseEstimator):
             idx = unique(append(dan,dbn))
             d1 = delete(dinst1,idx)
             d2 = delete(dinst2,idx)
-            
+
             # discrete first
             dist += len(d1[d1 != d2])
 
@@ -331,7 +331,7 @@ class ReliefF(BaseEstimator):
             row = append(row,dist)
 
         return row
-    #==================================================================#    
+    #==================================================================#
     def get_row_mixed(self, xc, xd, cdiffs, index):
 
         row = empty(0,dtype=double)
@@ -341,13 +341,13 @@ class ReliefF(BaseEstimator):
             dist = 0
             d2 = xd[j]
             c2 = xc[j]
-    
+
             # discrete first
             dist += len(d1[d1 != d2])
 
             # now continuous
             dist += sum(absolute(subtract(c1,c2)) / cdiffs)
-    
+
             row = append(row,dist)
 
         return row
@@ -356,7 +356,7 @@ class ReliefF(BaseEstimator):
         """ Create scores using ReleifF from data """
         #==================================================================#
         def buildIndexLists():
-            """ This creates lists of indexes of observations that share 
+            """ This creates lists of indexes of observations that share
                 the same value in the phenotype"""
             index = 0
             indicies = dict()
@@ -410,11 +410,11 @@ class ReliefF(BaseEstimator):
         datalen = self.datalen
         header = self.header
         maxInst = datalen
-        
+
         Scores = [0] * numattr
 
         indicies = buildIndexLists()
-    
+
         if(self.class_type == 'multiclass'):
             mcmap = self.getMultiClassMap()
         else:
@@ -425,7 +425,7 @@ class ReliefF(BaseEstimator):
             for sample in indicies.values():
                 n = sorted(sample,key=getsortTuple)
                 NN.extend(n[:neighbors])
-        
+
             for ai in range(numattr):
                 nn = array(NN)
                 Scores[ai] += self.getScores(header,attr,x,y,nn,inst,ai,mcmap)
@@ -434,17 +434,17 @@ class ReliefF(BaseEstimator):
         divisor = maxInst * neighbors
         for ai in range(numattr):
             Scores[ai] = Scores[ai]/float(divisor)
-            
+
         return Scores
-    
+
     #=====================================================================#
     def getMultiClassMap(self):
-        """ Find number of classes in the dataset and 
+        """ Find number of classes in the dataset and
             store them into the map """
         mcmap = dict()
         y = self.y
         maxInst = self.datalen
-        
+
         for i in range(maxInst):
             if(y[i] not in mcmap):
                 mcmap[y[i]] = 0
@@ -453,9 +453,9 @@ class ReliefF(BaseEstimator):
 
         for each in self.phenotype_list:
             mcmap[each] = mcmap[each]/float(maxInst)
-        
+
         return mcmap
-    
+
     #=====================================================================#
     def getScores(self, header, attr, x, y, NN, inst, ai, mcmap):
         """ Method evaluating the score of an attribute
@@ -566,7 +566,7 @@ class ReliefF(BaseEstimator):
                         else:
                             miss_diff += 1
 
-            # Take hit/miss inbalance into account (coming from missing data, 
+            # Take hit/miss inbalance into account (coming from missing data,
             # or inability to find enough continuous neighbors)
 
             hit_prop = hit_count/float(len(NN))
