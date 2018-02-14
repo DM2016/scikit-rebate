@@ -98,6 +98,7 @@ class MultiSURF(BaseEstimator):
 
         start = tm.time()
         if(self.class_type == 'multiclass'):
+            print("run multiclass")
             self.feature_importances_ = np.array(self.mcMultiSURF())
         else:
             self.feature_importances_ = np.array(self.runMultiSURF())
@@ -648,13 +649,17 @@ class MultiSURF(BaseEstimator):
             for each in class_Store_near:
                 missSum += class_Store_near[each][0]
 
-            hit_proportion = count_hit_near/float(count_hit_near+count_miss_near)
-            miss_proportion = count_miss_near/float(count_hit_near+count_miss_near)
+            #hit_proportion = count_hit_near/float(count_hit_near+count_miss_near)
+            #miss_proportion = count_miss_near/float(count_hit_near+count_miss_near)
+            hit_proportion = 1/(count_hit_near*datalen)
+            miss_proportion = 1/(count_miss_near*datalen)
 
+            print(count_hit_near, count_miss_near, count_hit_far, count_miss_far)
             for each in class_Store_near:
                 diff_miss_near += \
                 (class_Store_near[each][0]/float(missSum))*class_Store_near[each][1]
-            diff_miss_near = diff_miss_near * float(len(class_Store_near))
+            #diff_miss_near = diff_miss_near * float(len(class_Store_near))
+            diff_miss_near = diff_miss_near * float(len(class_Store_near)-1)
 
             diff = diff_miss_near*hit_proportion + diff_hit_near*miss_proportion
 
@@ -663,14 +668,18 @@ class MultiSURF(BaseEstimator):
             for each in class_Store_far:
                 missSum += class_Store_far[each][0]
 
-            hit_proportion = count_hit_far/float(count_hit_far + count_miss_far)
-            miss_proportion = count_miss_far/float(count_hit_far + count_miss_far)
+            #hit_proportion = count_hit_far/float(count_hit_far + count_miss_far)
+            #miss_proportion = count_miss_far/float(count_hit_far + count_miss_far)
+
+            hit_proportion = 1/(count_hit_far*datalen)
+            miss_proportion = 1/(count_miss_far*datalen)
 
             for each in class_Store_far:
                 diff_miss_far += \
                 (class_Store_far[each][0]/float(missSum))*class_Store_far[each][1]
 
-            diff_miss_far = diff_miss_far * float(len(class_Store_far))
+            #diff_miss_far = diff_miss_far * float(len(class_Store_far))
+            diff_miss_far = diff_miss_far * float(len(class_Store_far)-1)
 
             diff += diff_miss_far*hit_proportion + diff_hit_far*miss_proportion
 
