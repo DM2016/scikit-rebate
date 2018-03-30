@@ -34,8 +34,8 @@ def get_row_missing(xc, xd, cdiffs, index, cindices, dindices): #(Subset of cont
     dinst1 = xd[index] #discrete-valued features for index instance
     can = cindices[index] #Boolean mask locating missing values for continuous features for index instance
     dan = dindices[index] #Boolean mask locating missing values for discrete features for index instance
-    tf = len(cinst1) + len(dinst1) #total number of features. 
-    
+    tf = len(cinst1) + len(dinst1) #total number of features.
+
     #Progressively compare current instance to all others. Excludes comparison with self indexed instance. (Building the distance matrix triangle).
     for j in range(index):
         dist = 0
@@ -44,14 +44,14 @@ def get_row_missing(xc, xd, cdiffs, index, cindices, dindices): #(Subset of cont
 
         # Manage missing values in discrete features
         dbn = dindices[j] #Boolean mask locating missing values for discrete features for compared instance
-        idx = np.unique(np.append(dan, dbn)) #indexes where there is at least one missing value in the feature between an instance pair. 
+        idx = np.unique(np.append(dan, dbn)) #indexes where there is at least one missing value in the feature between an instance pair.
         dmc = len(idx) # Number of features excluded from distance calculation due to one or two missing values within instance pair. Used to normalize distance values for comparison.
         d1 = np.delete(dinst1, idx) #delete unique missing features from index instance
         d2 = np.delete(dinst2, idx) #delete unique missing features from compared instance
-        
+
         # Manage missing values in continuous features
         cbn = cindices[j] #Boolean mask locating missing values for continuous features for compared instance
-        idx = np.unique(np.append(can, cbn)) #indexes where there is at least one missing value in the feature between an instance pair. 
+        idx = np.unique(np.append(can, cbn)) #indexes where there is at least one missing value in the feature between an instance pair.
         cmc = len(idx) # Number of features excluded from distance calculation due to one or two missing values within instance pair. Used to normalize distance values for comparison.
         c1 = np.delete(cinst1, idx) #delete unique missing features from index instance
         c2 = np.delete(cinst2, idx) #delete unique missing features from compared instance
@@ -62,19 +62,19 @@ def get_row_missing(xc, xd, cdiffs, index, cindices, dindices): #(Subset of cont
 
         # Add continuous feature distance contributions (missing values excluded) - Manhattan distance (Note that 0-1 continuous value normalization is included ~ subtraction of minimums cancel out)
         dist += np.sum(np.absolute(np.subtract(c1, c2)) / cdf)
-        
+
         #Normalize distance calculation based on total number of missing values bypassed in either discrete or continuous features.
         tnmc = tf - dmc - cmc #Total number of unique missing counted
-        dist = dist/float(tnmc) #Distance normalized by number of features included in distance sum (this seeks to handle missing values neutrally in distance calculation) 
+        dist = dist/float(tnmc) #Distance normalized by number of features included in distance sum (this seeks to handle missing values neutrally in distance calculation)
 
         row = np.append(row, dist)
-        
+
     return row
 
 
 def compute_score(attr, mcmap, NN, feature, inst, nan_entries, headers, class_type, X, y, labels_std, near=True):
     """Flexible feature scoring method that can be used with any core Relief-based method. Scoring proceeds differently
-    based on whether endpoint is binary, multiclass, or continuous. This method is called for a single target instance 
+    based on whether endpoint is binary, multiclass, or continuous. This method is called for a single target instance
     + feature combination and runs over all items in NN. """
 
     fname = headers[feature] #feature identifier
@@ -82,14 +82,15 @@ def compute_score(attr, mcmap, NN, feature, inst, nan_entries, headers, class_ty
     ctype = class_type  # class type (binary, multiclass, continuous)
     diff_hit = diff_miss = 0.0  # Tracks the score contribution
     count_hit = count_miss = 0.0 #Tracks the number of hits/misses. Used in normalizing scores by 'k' in ReliefF, and by m or h in SURF, SURF*, MultiSURF*, and MultiSURF
-    diff = 0 #Initialize 'diff' (The score contribution for this target instance and feature over all NN) 
+    diff = 0 #Initialize 'diff' (The score contribution for this target instance and feature over all NN)
     mmdiff = attr[fname][3] # Max/Min range of values for target feature
-    
+    datalen = len(X)
+
     if nan_entries[inst][feature]: #If target instance is missing, then a 'neutral' score contribution of 0 is returned immediately since all NN comparisons will be against this missing value.
         return 0.
     #Note missing data normalization below regarding missing NN feature values is accomplished by counting hits and misses (missing values are not counted) (happens in parallel with hit/miss imbalance normalization)
 
-    xinstfeature = X[inst][feature]  #value of target instances target feature. 
+    xinstfeature = X[inst][feature]  #value of target instances target feature.
 
     #--------------------------------------------------------------------------
     if ctype == 'binary':
@@ -103,7 +104,7 @@ def compute_score(attr, mcmap, NN, feature, inst, nan_entries, headers, class_ty
             if near: #SCORING FOR NEAR INSTANCES
                 if y[inst] == y[NN[i]]:   # HIT
                     count_hit += 1
-                    if ftype == 'continuous': 
+                    if ftype == 'continuous':
                         diff_hit -= absvalue
                     else: # discrete feature
                         if xinstfeature != xNNifeature: # A difference in feature value is observed
@@ -115,19 +116,19 @@ def compute_score(attr, mcmap, NN, feature, inst, nan_entries, headers, class_ty
                     else: #discrete feature
                         if xinstfeature != xNNifeature: # A difference in feature value is observed
                             diff_miss += 1 # Feature score is increase when we observe feature difference between 'near' instances with different class values.
-                            
+
             else:  #SCORING FOR FAR INSTANCES (ONLY USED BY MULTISURF* BASED ON HOW CODED)
                 if y[inst] == y[NN[i]]:   # HIT
                     count_hit += 1
                     if ftype == 'continuous':
-                        diff_hit += absvalue  #Hits differently add continuous value differences rather than subtract them 
+                        diff_hit += absvalue  #Hits differently add continuous value differences rather than subtract them
                     else: #discrete feature
                         if xinstfeature == xNNifeature: # The same feature value is observed (Used for more efficient 'far' scoring, since there should be fewer same values for 'far' instances)
                             diff_hit -= 1 # Feature score is reduced when we observe the same feature value between 'far' instances with the same class.
                 else:  # MISS
                     count_miss += 1
                     if ftype == 'continuous':
-                        diff_miss -= absvalue #Misses differntly subtract continuous value differences rather than add them 
+                        diff_miss -= absvalue #Misses differntly subtract continuous value differences rather than add them
                     else: #discrete feature
                         if xinstfeature == xNNifeature: # The same feature value is observed (Used for more efficient 'far' scoring, since there should be fewer same values for 'far' instances)
                             diff_miss += 1 # Feature score is increased when we observe the same feature value between 'far' instances with different class values.
@@ -135,7 +136,7 @@ def compute_score(attr, mcmap, NN, feature, inst, nan_entries, headers, class_ty
         """ Score Normalizations:
         *'n' normalization dividing by the number of training instances (this helps ensure that all final scores end up in the -1 to 1 range
         *'k','h','m' normalization dividing by the respective number of hits and misses in NN (after ignoring missing values), also helps account for class imbalance within nearest neighbor radius)"""
-        diff = ((diff_hit / count_hit) + (diff_miss / count_miss)) / self._datalen
+        diff = ((diff_hit / count_hit) + (diff_miss / count_miss)) / datalen
 
     #--------------------------------------------------------------------------
     elif ctype == 'multiclass':
@@ -153,7 +154,7 @@ def compute_score(attr, mcmap, NN, feature, inst, nan_entries, headers, class_ty
 
             xNNifeature = X[NN[i]][feature]
             absvalue = abs(xinstfeature - xNNifeature) / mmdiff #Normalize absolute value of feature value difference by max-min value range for feature (so score update lies between 0 and 1)
-            
+
             if near: #SCORING FOR NEAR INSTANCES
                 if(y[inst] == y[NN[i]]):  # HIT
                     count_hit += 1
@@ -176,7 +177,7 @@ def compute_score(attr, mcmap, NN, feature, inst, nan_entries, headers, class_ty
                 if(y[inst] == y[NN[i]]):  # HIT
                     count_hit += 1
                     if ftype == 'continuous':
-                        diff_hit += absvalue #Hits differently add continuous value differences rather than subtract them 
+                        diff_hit += absvalue #Hits differently add continuous value differences rather than subtract them
                     else: #discrete features
                         if xinstfeature == xNNifeature:
                             diff_hit -= 1 # Feature score is reduced when we observe the same feature value between 'far' instances with the same class.
@@ -199,15 +200,15 @@ def compute_score(attr, mcmap, NN, feature, inst, nan_entries, headers, class_ty
         for each in class_store:
             count_miss += class_store[each][0]
             miss_sum += class_store[each][1]
-        
+
         for each in class_store: #multiclass normalization
             diff += class_store[each][1] * (class_store[each][0] / count_miss) # Contribution of given miss class weighted by it's observed frequency within NN set.
         diff = diff / count_miss #'m' normalization
-        
+
         #Hit component: with 'h' normalization
         diff += (diff_hit / count_hit)
-        
-        diff = diff / self._datalen # 'n' normalization
+
+        diff = diff / datalen # 'n' normalization
 
         return diff
 
@@ -237,7 +238,7 @@ def compute_score(attr, mcmap, NN, feature, inst, nan_entries, headers, class_ty
                     else: #discrete feature
                         if xinstfeature != xNNifeature:
                             diff_miss += 1 # Feature score is increase when we observe feature difference between 'near' instances with different class value.
-                            
+
             else:  #SCORING FOR FAR INSTANCES (ONLY USED BY MULTISURF* BASED ON HOW CODED)
                 if abs(y[inst] - y[NN[i]]) < same_class_bound:  # HIT approximation
                     count_hit += 1
@@ -253,11 +254,11 @@ def compute_score(attr, mcmap, NN, feature, inst, nan_entries, headers, class_ty
                     else: #discrete feature
                         if xinstfeature == xNNifeature:
                             diff_miss += 1 # Feature score is increased when we observe the same feature value between 'far' instances with different class values.
-                            
+
         """ Score Normalizations:
         *'n' normalization dividing by the number of training instances (this helps ensure that all final scores end up in the -1 to 1 range
         *'k','h','m' normalization dividing by the respective number of hits and misses in NN (after ignoring missing values), also helps account for class imbalance within nearest neighbor radius)"""
-        diff = ((diff_hit / count_hit) + (diff_miss / count_miss)) / self._datalen
+        diff = ((diff_hit / count_hit) + (diff_miss / count_miss)) / datalen
 
     return diff
 
@@ -283,14 +284,14 @@ def SURF_compute_scores(inst, attr, nan_entries, num_attributes, mcmap, NN, head
 
 
 def SURFstar_compute_scores(inst, attr, nan_entries, num_attributes, mcmap, NN_near, NN_far, headers, class_type, X, y, labels_std):
-    """ Unique scoring procedure for SURFstar algorithm. Scoring based on nearest neighbors within defined radius, as well as 
+    """ Unique scoring procedure for SURFstar algorithm. Scoring based on nearest neighbors within defined radius, as well as
     'anti-scoring' of far instances outside of radius of current target instance"""
     scores = np.zeros(num_attributes)
     for feature_num in range(num_attributes):
         if len(NN_near) > 0:
             scores[feature_num] += compute_score(attr, mcmap, NN_near, feature_num, inst,
                                                  nan_entries, headers, class_type, X, y, labels_std)
-        if len(NN_far) > 0: #Note that we are using the near scoring loop in 'compute_score' and then just subtracting it here, in line with original SURF* paper. 
+        if len(NN_far) > 0: #Note that we are using the near scoring loop in 'compute_score' and then just subtracting it here, in line with original SURF* paper.
             scores[feature_num] -= compute_score(attr, mcmap, NN_far, feature_num, inst,
                                                  nan_entries, headers, class_type, X, y, labels_std)
     return scores
